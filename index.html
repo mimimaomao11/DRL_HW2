@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cliff Walking: Q-Learning vs SARSA | RL Simulator</title>
+  <meta name="description" content="Interactive simulator comparing Q-learning and SARSA reinforcement learning algorithms on the Cliff Walking environment. Adjust parameters and visualize results in real time." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ── Header ───────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🏔️</span>
+        <div>
+          <div class="logo-title">Cliff Walking RL Simulator</div>
+          <div class="logo-sub">Q-Learning vs SARSA · Interactive Comparison</div>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="badge">ε-greedy</span>
+        <span class="badge">4 × 12 Grid</span>
+        <span class="badge">Tabular RL</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-layout">
+    <!-- ── Left Panel: Controls ──────────────────────────────── -->
+    <aside class="control-panel" id="controlPanel">
+      <div class="panel-section">
+        <h2 class="section-title">⚙️ Hyperparameters</h2>
+
+        <div class="param-group">
+          <label class="param-label">
+            Learning Rate <span class="param-symbol">α</span>
+            <span class="param-value" id="alphaVal">0.10</span>
+          </label>
+          <input type="range" id="alpha" min="0.01" max="1" step="0.01" value="0.10" class="slider" />
+          <div class="slider-ticks"><span>0.01</span><span>1.0</span></div>
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">
+            Discount Factor <span class="param-symbol">γ</span>
+            <span class="param-value" id="gammaVal">0.90</span>
+          </label>
+          <input type="range" id="gamma" min="0.5" max="1" step="0.01" value="0.90" class="slider" />
+          <div class="slider-ticks"><span>0.5</span><span>1.0</span></div>
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">
+            Exploration Rate <span class="param-symbol">ε</span>
+            <span class="param-value" id="epsilonVal">0.10</span>
+          </label>
+          <input type="range" id="epsilon" min="0.01" max="0.5" step="0.01" value="0.10" class="slider" />
+          <div class="slider-ticks"><span>0.01</span><span>0.5</span></div>
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">
+            Episodes
+            <span class="param-value" id="episodesVal">500</span>
+          </label>
+          <input type="range" id="episodes" min="100" max="1000" step="50" value="500" class="slider" />
+          <div class="slider-ticks"><span>100</span><span>1000</span></div>
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">
+            Runs (averaged)
+            <span class="param-value" id="runsVal">50</span>
+          </label>
+          <input type="range" id="runs" min="5" max="100" step="5" value="50" class="slider" />
+          <div class="slider-ticks"><span>5</span><span>100</span></div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h2 class="section-title">▶ Controls</h2>
+        <button id="runBtn" class="btn btn-primary" onclick="startTraining()">
+          <span class="btn-icon">▶</span> Run Simulation
+        </button>
+        <button class="btn btn-secondary" onclick="resetDefaults()">↺ Reset Defaults</button>
+      </div>
+
+      <div class="panel-section" id="progressSection" style="display:none">
+        <h2 class="section-title">📊 Progress</h2>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="progress-label" id="progressLabel">Initialising…</div>
+      </div>
+
+      <div class="panel-section" id="statsSection" style="display:none">
+        <h2 class="section-title">📈 Results</h2>
+        <div class="stats-grid">
+          <div class="stat-card sarsa">
+            <div class="stat-algo">SARSA</div>
+            <div class="stat-val" id="statSarsa">—</div>
+            <div class="stat-desc">avg last-50 reward</div>
+          </div>
+          <div class="stat-card qlearn">
+            <div class="stat-algo">Q-Learning</div>
+            <div class="stat-val" id="statQ">—</div>
+            <div class="stat-desc">avg last-50 reward</div>
+          </div>
+        </div>
+        <div class="insight-box" id="insightBox"></div>
+      </div>
+
+      <!-- Algorithm Reference -->
+      <div class="panel-section algo-ref">
+        <h2 class="section-title">📐 Formulae</h2>
+        <div class="formula-block">
+          <div class="formula-title qlearn-color">Q-Learning (Off-policy)</div>
+          <code>Q(s,a) ← Q(s,a) + α[r + γ·max Q(s') − Q(s,a)]</code>
+        </div>
+        <div class="formula-block">
+          <div class="formula-title sarsa-color">SARSA (On-policy)</div>
+          <code>Q(s,a) ← Q(s,a) + α[r + γ·Q(s',a') − Q(s,a)]</code>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Right Panel: Visualisations ──────────────────────── -->
+    <section class="vis-panel">
+
+      <!-- Reward Curve -->
+      <div class="card" id="rewardCard">
+        <div class="card-header">
+          <h3 class="card-title">Reward per Episode</h3>
+          <div class="card-legend">
+            <span class="legend-dot sarsa-bg"></span> SARSA
+            &nbsp;
+            <span class="legend-dot qlearn-bg"></span> Q-Learning
+            &nbsp;
+            <span class="legend-dash"></span> smoothed
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="rewardChart"></canvas>
+          <div class="chart-placeholder" id="rewardPlaceholder">
+            <div class="placeholder-icon">📉</div>
+            <div>Run the simulation to see reward curves</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Policy Maps -->
+      <div class="policy-row">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Q-Learning Policy</h3>
+            <span class="tag qlearn-tag">Off-policy</span>
+          </div>
+          <canvas id="policyQ" class="policy-canvas"></canvas>
+          <div class="chart-placeholder policy-ph" id="policyQPh">
+            <div class="placeholder-icon">🗺️</div>
+            <div>Policy will appear here</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">SARSA Policy</h3>
+            <span class="tag sarsa-tag">On-policy</span>
+          </div>
+          <canvas id="policySarsa" class="policy-canvas"></canvas>
+          <div class="chart-placeholder policy-ph" id="policySarsaPh">
+            <div class="placeholder-icon">🗺️</div>
+            <div>Policy will appear here</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Theory Box -->
+      <div class="card theory-card">
+        <h3 class="card-title">📚 Theoretical Analysis</h3>
+        <div class="theory-grid">
+          <div class="theory-item">
+            <div class="theory-label">Optimal Policy</div>
+            <div class="theory-desc">
+              <strong class="qlearn-color">Q-Learning</strong> learns the <em>theoretically shortest path</em> hugging the cliff edge (Row 2).
+              <strong class="sarsa-color">SARSA</strong> learns a <em>safer detour</em> via the top row, avoiding cliff risk during exploration.
+            </div>
+          </div>
+          <div class="theory-item">
+            <div class="theory-label">Stability</div>
+            <div class="theory-desc">
+              SARSA's on-policy updates internalize exploration risk, yielding <em>lower variance</em> per episode.
+              Q-Learning's off-policy update ignores ε-greedy exploration, leading to <em>higher variance</em> near the cliff.
+            </div>
+          </div>
+          <div class="theory-item">
+            <div class="theory-label">Convergence</div>
+            <div class="theory-desc">
+              SARSA converges to a <em>higher average reward</em> (safe path ≈ −24) under ε-greedy.
+              Q-Learning aims for the optimal greedy reward (≈ −13) but suffers during training due to cliff falls.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    Reinforcement Learning — Cliff Walking (Sutton &amp; Barto, Example 6.6) &nbsp;·&nbsp;
+    Q-Learning vs SARSA Comparison &nbsp;·&nbsp; 2026
+  </footer>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="rl.js"></script>
+</body>
+</html>

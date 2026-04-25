@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cliff Walking: Q-learning vs SARSA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 40px;
+        }
+        
+        .panel {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.4em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 20px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .progress-section {
+            display: none;
+        }
+        
+        .progress-section.active {
+            display: block;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        
+        .results-section {
+            display: none;
+        }
+        
+        .results-section.active {
+            display: block;
+        }
+        
+        .results-full {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 0;
+            background: transparent;
+            border: none;
+        }
+        
+        .results-full .panel {
+            grid-column: auto;
+        }
+        
+        .plot-container {
+            text-align: center;
+        }
+        
+        .plot-container img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        
+        .stats {
+            background: white;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        
+        .stats p {
+            margin: 8px 0;
+            color: #555;
+        }
+        
+        .stats strong {
+            color: #333;
+        }
+        
+        @media (max-width: 1200px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+            
+            .results-full {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .error {
+            color: #d32f2f;
+            padding: 12px;
+            background: #ffebee;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .error.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Cliff Walking Experiment</h1>
+            <p>Q-learning vs SARSA Comparison</p>
+        </header>
+        
+        <div class="content">
+            <!-- Parameters Panel -->
+            <div class="panel">
+                <h2>⚙️ Parameters</h2>
+                
+                <div class="form-group">
+                    <label for="episodes">Episodes:</label>
+                    <input type="number" id="episodes" value="500" min="100" max="2000" step="100">
+                </div>
+                
+                <div class="form-group">
+                    <label for="runs">Independent Runs:</label>
+                    <input type="number" id="runs" value="20" min="5" max="100" step="5">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="alpha">Learning Rate (α):</label>
+                        <input type="number" id="alpha" value="0.5" min="0.01" max="1" step="0.05">
+                    </div>
+                    <div class="form-group">
+                        <label for="gamma">Discount (γ):</label>
+                        <input type="number" id="gamma" value="0.9" min="0.5" max="0.99" step="0.05">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="epsilon">Epsilon (ε):</label>
+                    <input type="number" id="epsilon" value="0.1" min="0.01" max="0.5" step="0.05">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="rows">Rows:</label>
+                        <input type="number" id="rows" value="4" min="2" max="10" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="cols">Columns:</label>
+                        <input type="number" id="cols" value="12" min="5" max="20" step="1">
+                    </div>
+                </div>
+                
+                <button onclick="startTraining()">🚀 Start Training</button>
+                
+                <div class="error" id="errorMsg"></div>
+            </div>
+            
+            <!-- Progress Panel -->
+            <div class="panel progress-section" id="progressSection">
+                <h2>📊 Training Progress</h2>
+                
+                <p id="statusText">Preparing environment...</p>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill">0%</div>
+                </div>
+                
+                <p style="text-align: center; color: #888; font-size: 0.9em;">
+                    Please wait. This may take a few minutes...
+                </p>
+            </div>
+            
+            <!-- Results Panel -->
+            <div class="panel results-section" id="resultsSection">
+                <h2>📈 Results Summary</h2>
+                
+                <div class="stats">
+                    <p><strong>Q-learning (Final Avg Reward):</strong> <span id="qFinal">-</span></p>
+                    <p><strong>SARSA (Final Avg Reward):</strong> <span id="sarsaFinal">-</span></p>
+                </div>
+                
+                <div class="stats">
+                    <p><strong>Q-learning (Last 50 Eps Avg):</strong> <span id="qLast50">-</span></p>
+                    <p><strong>SARSA (Last 50 Eps Avg):</strong> <span id="sarsaLast50">-</span></p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Full Width -->
+        <div class="content results-full results-section" id="resultsFullSection" style="display: none;">
+            <div class="panel">
+                <h2>📊 Reward Curves</h2>
+                <div class="plot-container">
+                    <img id="plot1" src="" alt="Reward comparison">
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>📊 With Confidence Intervals</h2>
+                <div class="plot-container">
+                    <img id="plot2" src="" alt="Reward with CI">
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>🗺️ Q-learning Policy</h2>
+                <div class="plot-container">
+                    <img id="policyQ" src="" alt="Q-learning policy">
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>🗺️ SARSA Policy</h2>
+                <div class="plot-container">
+                    <img id="policySARSA" src="" alt="SARSA policy">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function startTraining() {
+            const params = {
+                episodes: parseInt(document.getElementById('episodes').value),
+                runs: parseInt(document.getElementById('runs').value),
+                alpha: parseFloat(document.getElementById('alpha').value),
+                gamma: parseFloat(document.getElementById('gamma').value),
+                epsilon: parseFloat(document.getElementById('epsilon').value),
+                rows: parseInt(document.getElementById('rows').value),
+                cols: parseInt(document.getElementById('cols').value),
+            };
+            
+            // Validation
+            if (params.episodes < 100 || params.runs < 5) {
+                showError('Episodes must be ≥ 100, Runs must be ≥ 5');
+                return;
+            }
+            
+            document.getElementById('errorMsg').classList.remove('show');
+            document.getElementById('progressSection').classList.add('active');
+            document.getElementById('resultsSection').classList.remove('active');
+            document.getElementById('resultsFullSection').style.display = 'none';
+            
+            fetch('/train', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(params)
+            }).then(() => {
+                pollProgress();
+            }).catch(err => {
+                showError('Failed to start training: ' + err);
+            });
+        }
+        
+        function pollProgress() {
+            fetch('/progress')
+                .then(r => r.json())
+                .then(data => {
+                    const fill = document.getElementById('progressFill');
+                    const status = document.getElementById('statusText');
+                    
+                    fill.style.width = data.progress + '%';
+                    fill.textContent = data.progress + '%';
+                    
+                    if (data.status === 'running') {
+                        status.textContent = 'Training in progress... (' + data.progress + '%)';
+                        setTimeout(pollProgress, 500);
+                    } else if (data.status === 'complete') {
+                        status.textContent = 'Training complete!';
+                        displayResults(data.results);
+                        document.getElementById('progressSection').classList.remove('active');
+                    }
+                });
+        }
+        
+        function displayResults(results) {
+            const stats = results.stats;
+            document.getElementById('qFinal').textContent = stats.q_final.toFixed(2) + ' ± ' + stats.q_std.toFixed(2);
+            document.getElementById('sarsaFinal').textContent = stats.sarsa_final.toFixed(2) + ' ± ' + stats.sarsa_std.toFixed(2);
+            document.getElementById('qLast50').textContent = stats.q_last50.toFixed(2);
+            document.getElementById('sarsaLast50').textContent = stats.sarsa_last50.toFixed(2);
+            
+            document.getElementById('plot1').src = 'data:image/png;base64,' + results.plot1;
+            document.getElementById('plot2').src = 'data:image/png;base64,' + results.plot2;
+            document.getElementById('policyQ').src = 'data:image/png;base64,' + results.policy_q;
+            document.getElementById('policySARSA').src = 'data:image/png;base64,' + results.policy_s;
+            
+            document.getElementById('resultsSection').classList.add('active');
+            document.getElementById('resultsFullSection').style.display = 'grid';
+        }
+        
+        function showError(msg) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = msg;
+            errorDiv.classList.add('show');
+        }
+    </script>
+</body>
+</html>

@@ -118,6 +118,20 @@ python train_final.py --episodes 500 --runs 50 --alpha 0.1 --epsilon 0.1 --outdi
 
 > **SARSA 收斂到較高的 reward** 是因為它走較長但安全的路（避崖），Q-learning 雖然理論最短路徑更優，但訓練中 ε-greedy 探索頻繁掉崖，拉低平均獎勵。
 
+### 📈 實驗結果視覺化
+
+#### 1. 訓練過程獎勵變化 (Reward Curve)
+![Reward Curve](outputs_final/reward_compare.png)
+
+#### 2. 訓練過程獎勵變化含信賴區間 (Reward Curve with CI)
+![Reward Curve with CI](outputs_final/reward_with_ci.png)
+
+#### 3. Q-Learning 學習到的策略地圖 (Policy Map)
+![Q-Learning Policy](outputs_final/policy_q.png)
+
+#### 4. SARSA 學習到的策略地圖 (Policy Map)
+![SARSA Policy](outputs_final/policy_sarsa.png)
+
 ---
 
 ## 📐 理論背景
